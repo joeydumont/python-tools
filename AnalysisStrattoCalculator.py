@@ -67,28 +67,34 @@ class Analysis3D:
     self.time_file_loaded = False
 
     try:
-      self.field_frequency  = h5py.File(kwargs['freq_field'], 'r', driver=driver, comm=comm)
+      if use_mpi:
+        self.field_frequency  = h5py.File(kwargs['freq_field'], 'r', driver=driver, comm=comm)
+      else:
+        self.field_frequency  = h5py.File(kwargs['freq_field'], 'r')
       self.freq_file_loaded = True
     except (IOError,KeyError):
       pass
 
     try:
-      self.field_temporal    = h5py.File(kwargs['time_field'], 'r', driver=driver, comm=comm)
+      if use_mpi:
+        self.field_temporal    = h5py.File(kwargs['time_field'], 'r', driver=driver, comm=comm)
+      else:
+        self.field_temporal    = h5py.File(kwargs['freq_field'], 'r')
       self.time_field_loaded = True
     except (IOError, KeyError):
       pass
 
-    if not freq_file_loaded and not time_file_loaded:
+    if not self.freq_file_loaded and not self.time_file_loaded:
       raise IOError("At least one file must be loaded.")
 
     # -- Number of components
-    if freq_file_loaded:
+    if self.freq_file_loaded:
       self.size_freq       = len(self.field_frequency['/field'])//6
-    if time_file_loaded:
+    if self.time_file_loaded:
       self.size_time       = len(self.field_temporal['/field'])//6
 
     # -- Size of mesh
-    if freq_file_loaded:
+    if self.freq_file_loaded:
       self.coord_r         = self.field_frequency['/coordinates/r']
       self.coord_theta     = self.field_frequency['/coordinates/theta']
       self.coord_z         = self.field_frequency['/coordinates/z']
@@ -96,7 +102,7 @@ class Analysis3D:
       self.size_theta      = self.coord_theta.size
       self.size_z          = self.coord_z.size
 
-    if not freq_file_loaded and time_file_loaded:
+    if not self.freq_file_loaded and self.time_file_loaded:
       self.coord_r         = self.field_temporal['/coordinates/r']
       self.coord_theta     = self.field_temporal['/coordinates/theta']
       self.coord_z         = self.field_temporal['/coordinates/z']
@@ -120,11 +126,11 @@ class Analysis3D:
     self.R_axial_meshgrid,self.Z_axial_meshgrid= np.meshgrid(self.r_axial*self.UNIT_LENGTH,self.coord_z[:]*self.UNIT_LENGTH)
 
     # -- Temporal information
-    if freq_file_loaded:
+    if self.freq_file_loaded:
       self.omega           = self.field_frequency['/spectrum/frequency (Hz)']
       self.domega          = self.omega[1]-self.omega[0]
 
-    if time_file_loaded:
+    if self.time_file_loaded:
       self.time            = self.field_temporal['time']
       self.dt              = self.time[1]-self.time[0]
 
@@ -644,18 +650,24 @@ class AnalysisRadial:
     self.time_file_loaded = False
 
     try:
-      self.field_frequency  = h5py.File(kwargs['freq_field'], 'r', driver=driver, comm=comm)
+      if use_mpi:
+        self.field_frequency  = h5py.File(kwargs['freq_field'], 'r', driver=driver, comm=comm)
+      else:
+        self.field_frequency  = h5py.File(kwargs['freq_field'], 'r')
       self.freq_file_loaded = True
     except (IOError,KeyError):
       pass
 
     try:
-      self.field_temporal    = h5py.File(kwargs['time_field'], 'r', driver=driver, comm=comm)
+      if use_mpi:
+        self.field_temporal    = h5py.File(kwargs['time_field'], 'r', driver=driver, comm=comm)
+      else:
+        self.field_temporal    = h5py.File(kwargs['freq_field'], 'r')
       self.time_field_loaded = True
     except (IOError, KeyError):
       pass
 
-    if not freq_file_loaded and not time_file_loaded:
+    if not self.freq_file_loaded and not self.time_file_loaded:
       raise IOError("At least one file must be loaded.")
 
     # -- Number of components
@@ -693,7 +705,9 @@ class AnalysisRadial:
     """
     Returns the freq-th frequency component of the electromagnetic field.
     """
-    return self.field_frequency['/field/{}-{}'.format(comp,freq)]
+    amplitude = self.field_frequency['/field/{}-{}/amplitude'.format(comp,freq)]
+    phase     = self.field_frequency['/field/{}-{}/phase'.format(comp,freq)]
+    return amplitude[:]*np.exp(1j*phase[:])
 
   def GetTemporalComponent(self,comp,time):
     """
