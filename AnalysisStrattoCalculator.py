@@ -26,6 +26,17 @@ import time
 from mpi4py import MPI
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+# -- CONSTANTS
+UNIT_MASS      = 9.109382914e-31
+UNIT_LENGTH    = 3.86159e-13
+UNIT_TIME      = 1.2880885e-21
+SPEED_OF_LIGHT = 299792458
+EPSILON_0      = 8.85418782e-12
+MU_0           = 4*np.pi*1.0e-7
+ALPHA          = 1.0/137.035999074
+UNIT_E_FIELD   = 1.3e18*np.sqrt(4*np.pi*ALPHA)
+UNIT_B_FIELD   = UNIT_E_FIELD/SPEED_OF_LIGHT
+
 # ---------------------------- Class Definition ----------------------------- #
 class Analysis3D:
   """
