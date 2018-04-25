@@ -82,7 +82,7 @@ def GouyPhase(kr,kth,z_range,z,k):
 	kth_interp = interpolate.interp1d(z_range,kth)
 
 	def GouyPhaseIntegrand(z):
-		return -1.0/k**(kr_interp(z)+kth_interp(z))
+		return -1.0/k*(kr_interp(z)+kth_interp(z))
 
 	return integrate.quad(GouyPhaseIntegrand, 0, z)
 
@@ -90,7 +90,7 @@ def GouyPhase(kr,kth,z_range,z,k):
 def f(r,theta,z):
 	#return 1.0/np.sqrt(r**2+0.1**2)
     waist_sq = 1.0+(z/2)**2
-    return np.exp(-r**2/waist_sq)
+    return np.exp(-r**2/waist_sq)/np.sqrt(waist_sq)
 	#return 1.0/(r**2+0.1**2)
 
 def Hf(k):
@@ -98,33 +98,43 @@ def Hf(k):
 	#return np.exp(-0.5*k**2)
 	return sp.kn(0,0.1*k)
 
-size_r  = 50
-size_th = 50
-size_z  = 20
+if __name__ == "__main__":
+	"""
+	We test the PolarFourierTransform module.
+	"""
+	size_r  = 75
+	size_th = 75
+	size_z  = 20
 
-r  = np.linspace(0.0,3.0,size_r)
-th = np.linspace(0.0,2*np.pi,size_th)
-z  = np.linspace(-4.0,4.0,size_z)
-fr_sm_z  = np.zeros((size_z))
-fth_sm_z = np.zeros((size_z))
+	r  = np.linspace(0.0,3.0,size_r)
+	th = np.linspace(0.0,2*np.pi,size_th)
+	z  = np.linspace(-4.0,4.0,size_z)
+	fr_sm_z  = np.zeros((size_z))
+	fth_sm_z = np.zeros((size_z))
 
-for k in range(size_z):
-	samples = np.zeros((size_r,size_th))
+	for k in range(size_z):
+		samples = np.zeros((size_r,size_th))
 
-	for i in range(size_r):
-		for j in range(size_th):
-			samples[i,j] = f(r[i],th[j], z[k])
+		for i in range(size_r):
+			for j in range(size_th):
+				samples[i,j] = f(r[i],th[j], z[k])
 
-	transform, fr, fth = polar_fft2(samples, deltaR= r[1] - r[0])
-	fr_sm_z[k], fth_sm_z[k] = freqSecondMoments(transform, fr, fth)
+		transform, fr, fth = polar_fft2(samples, deltaR= r[1] - r[0])
+		fr_sm_z[k], fth_sm_z[k] = freqSecondMoments(transform, fr, fth)
 
-gouyPhaseGaussian = np.zeros((size_z))
-error             = np.zeros((size_z))
+	# -- We plot the second moments.
+	plt.figure()
+	plt.plot(z,fr_sm_z)
+	plt.plot(z,fth_sm_z)
+	plt.plot(z,1.0/(1.0+z**2))
 
-for i in range(size_z):
-	gouyPhaseGaussian[i],error[i], = GouyPhase(fr_sm_z,fth_sm_z,z,z[i],1.0)
+	gouyPhaseGaussian = np.zeros((size_z))
+	error             = np.zeros((size_z))
 
-plt.figure()
-plt.plot(z,gouyPhaseGaussian)
-plt.plot(z,-np.arctan(z/2))
-plt.show()
+	for i in range(size_z):
+		gouyPhaseGaussian[i],error[i], = GouyPhase(fr_sm_z,fth_sm_z,z,z[i],1.0)
+
+	plt.figure()
+	plt.plot(z,gouyPhaseGaussian)
+	plt.plot(z,-np.arctan(z/2))
+	plt.show()

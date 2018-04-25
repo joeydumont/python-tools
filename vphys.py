@@ -25,7 +25,7 @@ def mkdir_p(mypath):
 
 
 # --------------------------- matplotlib Functions -------------------------- #
-def adjust_spines(ax, spines):
+def adjust_spines(ax, spines, points_outward=10):
   """
   Helps in re-creating the spartan style of Jean-luc Doumont's graphs.
 
@@ -34,7 +34,7 @@ def adjust_spines(ax, spines):
   """
   for loc, spine in ax.spines.items():
       if loc in spines:
-          spine.set_position(('outward', 10))  # outward by 10 points
+          spine.set_position(('outward', points_outward))  # outward by 10 points
           #spine.set_smart_bounds(True)
           spine.set_color('gray')
       else:
@@ -66,15 +66,27 @@ def default_pgf_configuration():
    		"pgf.preamble": [
         r"\usepackage{amsmath}",
         r"\usepackage{siunitx}",
-        r"\usepackage{mathspec}",
+        #r"\usepackage{mathspec}",
         r"\usepackage[charter]{mathdesign}",
         r"\usepackage{fontspec}",
-        r"\setmathfont{Fira Sans}",
+        #r"\setmathfont{Fira Sans}",
         r"\setmainfont{Oswald}",
         ]
   }
 
   return pgf_with_pdflatex
+
+def BarPlotWithLogAxes(ax_handle,x,y,width, xdelta=0.0, **plot_kwargs):
+    """
+    This plots a bar graph with a log-scaled x axis by manually filling rectangles.
+    We use the
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    for i in range(len(x)):
+        artist, = ax_handle.fill([10**(np.log10(x[i])-width-xdelta), 10**(np.log10(x[i])-width-xdelta), 10**(np.log10(x[i])+width-xdelta),10**(np.log10(x[i])+width-xdelta)], [0, y[i], y[i], 0],**plot_kwargs)
+
+    return artist
 
 # ------------------------------ MPI Functions ------------------------------ #
 def GenerateIndicesForDifferentProcs(nprocs, loopsize):
@@ -102,3 +114,22 @@ def GenerateIndicesForDifferentProcs(nprocs, loopsize):
       indices_rank = np.array([rank])
 
   return indices_rank
+
+# ------------------------ Cluster-Related Functions ------------------------ #
+
+def ListSimulationDirectories(bin_dir):
+  """
+  We count the number of directory that end in \d{5}.BQ. This gives us the
+  number of simulation that we ran, and also their names.
+  """
+  import os
+  import re
+  dirList = [f for f in os.listdir(bin_dir) if re.search(r'(.*\d{5}.BQ)', f)]
+
+  sortedList = sorted(dirList, key=str.lower)
+
+  for i in range(len(sortedList)):
+    sortedList[i] += "/{:05g}.BQ/".format(i+1)
+
+  return sortedList
+

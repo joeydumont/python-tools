@@ -37,6 +37,119 @@ ALPHA          = 1.0/137.035999074
 UNIT_E_FIELD   = 1.3e18*np.sqrt(4*np.pi*ALPHA)
 UNIT_B_FIELD   = UNIT_E_FIELD/SPEED_OF_LIGHT
 
+def PlotAllFieldComponentsOnAPlane(X,Y,Ex,Ey,Ez,Bx,By,Bz,filename,
+                                   normalization=False,
+                                   xlabel=r"$x$ [\si{\micro\metre}]",
+                                   ylabel=r"$y$ [\si{\micro\metre}]",
+                                   **kwargs):
+  """
+  We create a plot of all 6 electromagnetic components on the same figure.
+  """
+  # -- We find the maximal value of the components.
+  maxList = np.zeros((6))
+  maxList[0] = np.amax(np.abs(Ex))
+  maxList[1] = np.amax(np.abs(Ey))
+  maxList[2] = np.amax(np.abs(Ez))
+  maxList[3] = np.amax(np.abs(Bx))
+  maxList[4] = np.amax(np.abs(By))
+  maxList[5] = np.amax(np.abs(Bz))
+
+  maxComponent = np.amax(maxList)
+
+  if (normalization):
+    Ex /= maxComponent
+    Ey /= maxComponent
+    Ez /= maxComponent
+    Bx /= maxComponent
+    By /= maxComponent
+    Bz /= maxComponent
+
+  # -- We prepare the figure.
+  figComponents = plt.figure(figsize=(7,4))
+  figComponents.subplots_adjust(hspace=0.3,wspace=0.7)
+
+  # ----------------------------------- Ex ------------------------------------ #
+
+  # Image at focal plane.
+  axExPlane  = plt.subplot2grid((2,3), (0,0))
+  im         = axExPlane.pcolormesh(X, Y, Ex, cmap='viridis', rasterized=True)
+  axExPlane.set_aspect('equal')
+  axExPlane.set_ylabel(ylabel)
+  axExPlane.set_title(r"$E_x$")
+
+  divider = make_axes_locatable(axExPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  # ----------------------------------- Ey ------------------------------------ #
+
+  # Image at focal plane.
+  axEyPlane  = plt.subplot2grid((2,3), (0,1))
+  im         = axEyPlane.pcolormesh(X, Y, Ey, cmap='viridis',rasterized=True)
+  axEyPlane.set_aspect('equal')
+  axEyPlane.set_title(r"$E_y$")
+
+  divider = make_axes_locatable(axEyPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  # ----------------------------------- Ez ------------------------------------ #
+
+  # Image at focal plane.
+  axEzPlane  = plt.subplot2grid((2,3), (0,2))
+  im         = axEzPlane.pcolormesh(X, Y, Ez, cmap='viridis',rasterized=True)
+  axEzPlane.set_aspect('equal')
+  axEzPlane.set_title(r"$E_z$")
+
+  # Colorbar and other decorations.
+  divider = make_axes_locatable(axEzPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  # ----------------------------------- Bx ------------------------------------ #
+
+  # Image at focal plane.
+  axBxPlane  = plt.subplot2grid((2,3), (1,0))
+  im         = axBxPlane.pcolormesh(X, Y, Bx, cmap='viridis',rasterized=True)
+  axBxPlane.set_aspect('equal')
+  axBxPlane.set_xlabel(xlabel)
+  axBxPlane.set_ylabel(ylabel)
+  axBxPlane.set_title(r"$B_x$")
+
+  divider = make_axes_locatable(axBxPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  # ----------------------------------- By ------------------------------------ #
+
+  # Image at focal plane.
+  axByPlane  = plt.subplot2grid((2,3), (1,1))
+  im         = axByPlane.pcolormesh(X, Y, By, cmap='viridis',rasterized=True)
+  axByPlane.set_aspect('equal')
+  axByPlane.set_xlabel(xlabel)
+  axByPlane.set_title(r"$B_y$")
+
+  divider = make_axes_locatable(axByPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  # ----------------------------------- Bz ------------------------------------ #
+
+  # Image at focal plane.
+  axBzPlane  = plt.subplot2grid((2,3), (1,2))
+  im         = axBzPlane.pcolormesh(X, Y, Bz, cmap='viridis',rasterized=True)
+  axBzPlane.set_aspect('equal')
+  axBzPlane.set_xlabel(xlabel)
+  axBzPlane.set_title(r"$B_z$")
+
+  divider = make_axes_locatable(axBzPlane)
+  cax = divider.append_axes("right", size="5%", pad=0.1)
+  cbar = plt.colorbar(im, cax=cax)
+
+  plt.savefig(filename, bbox_inches='tight', dpi=500)
+
+  plt.close(figComponents)
+
 # ---------------------------- Class Definition ----------------------------- #
 class Analysis3D:
   """
@@ -90,8 +203,8 @@ class Analysis3D:
       if use_mpi:
         self.field_temporal    = h5py.File(kwargs['time_field'], 'r', driver=driver, comm=comm)
       else:
-        self.field_temporal    = h5py.File(kwargs['freq_field'], 'r')
-      self.time_field_loaded = True
+        self.field_temporal    = h5py.File(kwargs['time_field'], 'r')
+        self.time_file_loaded = True
     except (IOError, KeyError):
       pass
 
@@ -141,9 +254,12 @@ class Analysis3D:
       self.omega           = self.field_frequency['/spectrum/frequency (Hz)']
       self.domega          = self.omega[1]-self.omega[0]
 
+      self.wavelength      = self.field_frequency['/spectrum/wavelength (m)']
+
     if self.time_file_loaded:
       self.time            = self.field_temporal['time']
       self.dt              = self.time[1]-self.time[0]
+
 
   def close(self):
     """
@@ -161,7 +277,7 @@ class Analysis3D:
     """
     amplitude = self.field_frequency['/field/{}-{}/amplitude'.format(comp,freq)]
     phase     = self.field_frequency['/field/{}-{}/phase'.format(comp,freq)]
-    return amplitude[:]*np.exp(1j*phase[:])
+    return np.array(amplitude[:]*np.exp(1j*phase[:]), dtype=complex)
 
   def GetTemporalComponent(self,comp,time):
     """
@@ -267,7 +383,7 @@ class Analysis3D:
         area += 0.5*(y0*dx-x0*dy)
         x0 = x1
         y0 = y1
-      return area
+      return -area
 
     # -- Finds the maximum value of the functional.
     maxValue = np.amax(planeInformation)
@@ -484,7 +600,7 @@ class Analysis3D:
     """
     return self.UNIT_B_FIELD*Bz[:]
 
-  def ExCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def ExAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     """
     Returns the component Ex.
     """
@@ -496,7 +612,7 @@ class Analysis3D:
 
     return np.abs(Ex)
 
-  def EyCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def EyAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     """
     Returns the Ey component.
     """
@@ -508,10 +624,10 @@ class Analysis3D:
 
     return np.abs(Ey)
 
-  def EzCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def EzAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     return np.abs(Ez)
 
-  def BxCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def BxAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     Bx = np.zeros_like(Er)
     for i in range(self.size_theta):
       c = np.cos(self.coord_theta[i])
@@ -520,7 +636,7 @@ class Analysis3D:
 
     return np.abs(Bx)
 
-  def ByCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def ByAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     """
     Returns the Ey component.
     """
@@ -532,8 +648,47 @@ class Analysis3D:
 
     return np.abs(By)
 
-  def BzCart(self,Er,Eth,Ez,Br,Bth,Bz):
+  def BzAbsCart(self,Er,Eth,Ez,Br,Bth,Bz):
     return np.abs(Bz)
+
+  def PairDensity(self,Er,Eth,Ez,Br,Bth,Bz):
+    """
+    Computes the pair density.
+    """
+    F = self.LorentzInvariantF(Er,Eth,Ez,Br,Bth,Bz)
+    G = self.LorentzInvariantG(Er,Eth,Ez,Br,Bth,Bz)
+
+    E = np.sqrt(np.sqrt(F**2+G**2)+F)
+    H = np.sqrt(np.sqrt(F**2+G**2)-F)
+
+    prefac = np.zeros_like(F)
+    exp    = np.zeros_like(F)
+    for i in range(E.size):
+      if math.isclose(E.flat[i], 0.0):
+        prefac.flat[i] = 0.0
+        exp.flat[i]         = 0.0
+      elif math.isclose(H.flat[i], 0.0):
+        prefac.flat[i] = E.flat[i]*E.flat[i]/np.pi
+        exp.flat[i]    = np.exp(-np.pi/E.flat[i])
+      else:
+        prefac.flat[i] = H.flat[i]*E.flat[i]/np.tanh(np.pi*H.flat[i]/E.flat[i])
+        exp.flat[i]    = np.exp(-np.pi/E.flat[i])
+
+    return cst.alpha/cst.pi*prefac*exp
+
+  def PairDensityTime(self, timeIdx):
+    """
+    Computes the pair density as at a given time index.
+    """
+
+    Er           = self.GetTemporalComponent("Er", timeIdx)[:]
+    Eth          = self.GetTemporalComponent("Eth", timeIdx)[:]
+    Ez           = self.GetTemporalComponent("Ez", timeIdx)[:]
+    Br           = self.GetTemporalComponent("Br", timeIdx)[:]
+    Bth          = self.GetTemporalComponent("Bth", timeIdx)[:]
+    Bz           = self.GetTemporalComponent("Bz", timeIdx)[:]
+
+    return self.PairDensity(Er,Eth,Ez,Br,Bth,Bz)
 
   def GetFocalPlaneInTimeCartesian(self,z_idx):
     """
@@ -566,7 +721,7 @@ class Analysis3D:
           BxFocalPlaneTime[k,j,i] = c*Br[k,j]-s*Bth[k,j]
           ByFocalPlaneTime[k,j,i] = s*Br[k,j]+c*Bth[k,j]
 
-      EzFocalPlaneTime[:,:,i] = Er[:,:]
+      EzFocalPlaneTime[:,:,i] = Ez[:,:]
       BzFocalPlaneTime[:,:,i] = Bz[:,:]
 
     return ExFocalPlaneTime, EyFocalPlaneTime, EzFocalPlaneTime, BxFocalPlaneTime, ByFocalPlaneTime, BzFocalPlaneTime
@@ -577,7 +732,7 @@ class Analysis3D:
     x-axis plane, known as the sagittal plane, as a function of time.
     """
     # Test to figure out the proper size of the array.
-    ExSagittalPlane = np.concatenate([-testAnalysis.GetTemporalComponent("Er",  0)[:,self.size_theta//2,:][::-1,:], self.GetTemporalComponent("Er",  0)[1:,0,:]])
+    ExSagittalPlane = np.concatenate([-self.GetTemporalComponent("Er",  0)[:,self.size_theta//2,:][::-1,:], self.GetTemporalComponent("Er",  0)[1:,0,:]])
 
     # Set the proper array sizes.
     ExSagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_time))
@@ -622,6 +777,108 @@ class Analysis3D:
       BzMeridionalPlane[:,:,i] = np.concatenate([ self.GetTemporalComponent("Bz",  i)[:,3*self.size_theta//4,:][::-1,:],  self.GetTemporalComponent("Bz",  i)[1:,self.size_theta//4,:]])
 
     return ExMeridionalPlane, EyMeridionalPlane, EzMeridionalPlane, BxMeridionalPlane, ByMeridionalPlane, BzMeridionalPlane
+
+  def GetFocalPlaneInFreqCartesian(self,z_idx):
+    """
+    Returns the Cartesian components of the electromagnetic field in a given
+    z plane, usually the focal lane, as a function of frequency.
+    """
+    ExFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+    EyFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+    EzFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+    BxFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+    ByFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+    BzFocalPlaneFreq = np.zeros((self.size_r,self.size_theta,self.size_freq), dtype=complex)
+
+    for i in range(self.size_freq):
+      # -- We get the cylindrical components first.
+      Er  = self.GetFrequencyComponent("Er",  i)[:,:,z_idx]
+      Eth = self.GetFrequencyComponent("Eth", i)[:,:,z_idx]
+      Ez  = self.GetFrequencyComponent("Ez", i)[:,:,z_idx]
+      Br  = self.GetFrequencyComponent("Br",  i)[:,:,z_idx]
+      Bth = self.GetFrequencyComponent("Bth", i)[:,:,z_idx]
+      Bz  = self.GetFrequencyComponent("Bz", i)[:,:,z_idx]
+
+      for j in range(Er.shape[1]):
+        c = np.cos(self.coord_theta[j])
+        s = np.sin(self.coord_theta[j])
+
+        for k in range(Er.shape[0]):
+          ExFocalPlaneFreq[k,j,i] = c*Er[k,j]-s*Eth[k,j]
+          EyFocalPlaneFreq[k,j,i] = s*Er[k,j]+c*Eth[k,j]
+          BxFocalPlaneFreq[k,j,i] = c*Br[k,j]-s*Bth[k,j]
+          ByFocalPlaneFreq[k,j,i] = s*Br[k,j]+c*Bth[k,j]
+
+      EzFocalPlaneFreq[:,:,i] = Er[:,:]
+      BzFocalPlaneFreq[:,:,i] = Bz[:,:]
+
+    return ExFocalPlaneFreq, EyFocalPlaneFreq, EzFocalPlaneFreq, BxFocalPlaneFreq, ByFocalPlaneFreq, BzFocalPlaneFreq
+
+  def GetSagittalPlaneInFreqCartesian(self):
+    """
+    Return the Cartesian components of the electromagnetic field in a given
+    x-axis plane, known as the sagittal plane, as a function of frequency.
+    """
+    # Test to figure out the proper size of the array.
+    ExSagittalPlane = np.concatenate([-self.GetFrequencyComponent("Er",  0)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Er",  0)[1:,0,:]])
+
+    # Set the proper array sizes.
+    ExSagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+    EySagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+    EzSagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+    BxSagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+    BySagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+    BzSagittalPlane = np.zeros((ExSagittalPlane.shape[0],ExSagittalPlane.shape[1],self.size_freq), dtype=complex)
+
+    for i in range(self.size_freq):
+      ExSagittalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Er",  i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Er",  i)[1:,0,:]])
+      EySagittalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Eth", i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Eth", i)[1:,0,:]])
+      EzSagittalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Ez",  i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Ez",  i)[1:,0,:]])
+      BxSagittalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Br",  i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Br",  i)[1:,0,:]])
+      BySagittalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Bth", i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Bth", i)[1:,0,:]])
+      BzSagittalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Bz",  i)[:,self.size_theta//2,:][::-1,:], self.GetFrequencyComponent("Bz",  i)[1:,0,:]])
+
+    return ExSagittalPlane, EySagittalPlane, EzSagittalPlane, BxSagittalPlane,  BySagittalPlane, BzSagittalPlane
+
+  def GetMeridionalPlaneInFreqCartesian(self):
+    """
+    Returns the Cartesian components of the electromagnetic field in a given
+    y plane, known as the meridional plane, as a function of frequency.
+    """
+    # Test to figure out the array size.
+    ExMeridionalPlane = np.concatenate([ self.GetFrequencyComponent("Eth", 0)[:,3*self.size_theta//4,:][::-1,:], -self.GetFrequencyComponent("Eth", 0)[1:,self.size_theta//4,:]])
+
+    # Set the proper array sizes.
+    ExMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+    EyMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+    EzMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+    BxMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+    ByMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+    BzMeridionalPlane = np.zeros((ExMeridionalPlane.shape[0], ExMeridionalPlane.shape[1],self.size_freq), dtype=complex)
+
+    for i in range(self.size_freq):
+      ExMeridionalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Eth", i)[:,3*self.size_theta//4,:][::-1,:], -self.GetFrequencyComponent("Eth", i)[1:,self.size_theta//4,:]])
+      EyMeridionalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Er",  i)[:,3*self.size_theta//4,:][::-1,:],  self.GetFrequencyComponent("Er",  i)[1:,self.size_theta//4,:]])
+      EzMeridionalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Ez",  i)[:,3*self.size_theta//4,:][::-1,:],  self.GetFrequencyComponent("Ez",  i)[1:,self.size_theta//4,:]])
+      BxMeridionalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Bth", i)[:,3*self.size_theta//4,:][::-1,:], -self.GetFrequencyComponent("Bth", i)[1:,self.size_theta//4,:]])
+      ByMeridionalPlane[:,:,i] = np.concatenate([-self.GetFrequencyComponent("Br",  i)[:,3*self.size_theta//4,:][::-1,:],  self.GetFrequencyComponent("Br",  i)[1:,self.size_theta//4,:]])
+      BzMeridionalPlane[:,:,i] = np.concatenate([ self.GetFrequencyComponent("Bz",  i)[:,3*self.size_theta//4,:][::-1,:],  self.GetFrequencyComponent("Bz",  i)[1:,self.size_theta//4,:]])
+
+    return ExMeridionalPlane, EyMeridionalPlane, EzMeridionalPlane, BxMeridionalPlane, ByMeridionalPlane, BzMeridionalPlane
+
+  def PrepareTransverseCuts(self,X_meshgrid,Y_meshgrid,field):
+    """
+    We prepare tranverse cuts of the given field.
+    """
+    # -- Prepare the cuts.
+    X      = np.concatenate([-X_meshgrid[0,::-1],X_meshgrid[0,1:]])
+    Y      = np.concatenate([-Y_meshgrid[::-1,0],Y_meshgrid[1:,0]])
+
+    imax, jmax = field.shape
+    field_XCut = np.concatenate([field[::-1,jmax//2],       field[1:,0]])
+    field_YCut = np.concatenate([field[::-1,3*jmax//4],     field[1:,jmax//4]])
+
+    return X, Y, field_XCut, field_YCut
 
 class AnalysisRadial:
   """
@@ -718,7 +975,7 @@ class AnalysisRadial:
     """
     amplitude = self.field_frequency['/field/{}-{}/amplitude'.format(comp,freq)]
     phase     = self.field_frequency['/field/{}-{}/phase'.format(comp,freq)]
-    return amplitude[:]*np.exp(1j*phase[:])
+    return np.array(amplitude[:]*np.exp(1j*phase[:]),dtype=complex)
 
   def GetTemporalComponent(self,comp,time):
     """
