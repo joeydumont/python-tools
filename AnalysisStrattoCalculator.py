@@ -872,7 +872,7 @@ class Analysis3D:
     """
     # -- Prepare the cuts.
     X      = np.concatenate([-X_meshgrid[0,::-1],X_meshgrid[0,1:]])
-    Y      = np.concatenate([-Y_meshgrid[::-1,0],Y_meshgrid[1:,0]])
+    Y      = X#np.concatenate([-X_meshgrid[::-1,0],X_meshgrid[1:,0]])
 
     imax, jmax = field.shape
     field_XCut = np.concatenate([field[::-1,jmax//2],       field[1:,0]])
