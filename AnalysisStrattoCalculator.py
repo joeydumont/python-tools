@@ -25,6 +25,7 @@ import h5py
 import time
 from mpi4py import MPI
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import vphys
 
 # -- CONSTANTS
 UNIT_MASS      = 9.109382914e-31
@@ -403,7 +404,8 @@ class Analysis3D:
     maximum.
 
     To compute the beam waist on asymmetric profiles, we will compute the waist at
-    different values of theta, and average the result.
+    different values of theta and output a vector. We also single out the values
+    for theta=0 and theta=pi/2.
     """
     # -- Find the maximum value of the functional.
     maxValue = np.amax(planeInformation)
@@ -417,7 +419,11 @@ class Analysis3D:
           waist[i] = self.coord_r[j]*self.UNIT_LENGTH
           break;
 
-    return np.mean(waist)
+    # -- Find the values for theta=0 and theta=pi/2.
+    idx, value = vphys.find_nearest(self.coord_theta, np.pi/2)
+
+
+    return waist[0], waist[idx],np.mean(waist)
 
 
   def TemporalDuration(self, temporalFunctional):
@@ -809,7 +815,7 @@ class Analysis3D:
           BxFocalPlaneFreq[k,j,i] = c*Br[k,j]-s*Bth[k,j]
           ByFocalPlaneFreq[k,j,i] = s*Br[k,j]+c*Bth[k,j]
 
-      EzFocalPlaneFreq[:,:,i] = Er[:,:]
+      EzFocalPlaneFreq[:,:,i] = Ez[:,:]
       BzFocalPlaneFreq[:,:,i] = Bz[:,:]
 
     return ExFocalPlaneFreq, EyFocalPlaneFreq, EzFocalPlaneFreq, BxFocalPlaneFreq, ByFocalPlaneFreq, BzFocalPlaneFreq

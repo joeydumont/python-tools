@@ -7,7 +7,7 @@
 #               - Matplotlib                                                  #
 # --------------------------------------------------------------------------- #
 
-# ----------------------------- Misc. Functions ----------------------------- #
+# --------------------------- OS-related Functions -------------------------- #
 def mkdir_p(mypath):
   """
   Creates a directory. equivalent to using mkdir -p on the command line
@@ -23,6 +23,20 @@ def mkdir_p(mypath):
           pass
       else: raise
 
+
+# ----------------------------- numpy Functions ----------------------------- #
+def find_nearest(array,value):
+  """
+  Find the value in an array closest to a specified value. Return the index and
+  value.
+  """
+  import math
+  import numpy as np
+  idx = np.searchsorted(array, value, side="left")
+  if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+    return idx-1, array[idx-1]
+  else:
+    return idx, array[idx]
 
 # --------------------------- matplotlib Functions -------------------------- #
 def adjust_spines(ax, spines, points_outward=10):
