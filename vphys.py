@@ -23,6 +23,13 @@ def mkdir_p(mypath):
           pass
       else: raise
 
+# ---------------------------- Utility Functions ---------------------------- #
+def user_mod(value, modulo):
+  """
+  Modulo function that works for both positive and negative "value."
+  """
+  import numpy as np
+  return value-np.abs(modulo)*np.floor(value/np.abs(modulo))
 
 # ----------------------------- numpy Functions ----------------------------- #
 def find_nearest(array,value):

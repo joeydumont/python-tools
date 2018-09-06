@@ -11,6 +11,7 @@
 # --------------------------- Modules Importation --------------------------- #
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scipy.special as sp
 import scipy.interpolate as interpolate
 import scipy.integrate as integrate
@@ -18,6 +19,7 @@ import scipy.constants as cst
 import itertools
 import unittest
 import sympy
+import vphys
 
 # -------------------------------- Functions -------------------------------- #
 def ExpansionCoefficient(m,p):
@@ -65,36 +67,52 @@ def ExLax(X,Y,z,k,w_0,m_max):
   x_sym, y_sym,z_sym,k_sym, w_0_sym = sympy.symbols('x_sym y_sym z_sym k_sym w_0_sym')
   z_r_sym     = k_sym*w_0_sym**2/2
   w_z_sym     = w_0_sym*sympy.sqrt(1+(z_sym/z_r_sym)**2)
-  phi_0       = w_0_sym/w_z_sym*sympy.exp(-(x_sym**2+y_sym**2)/w_z_sym**2)*sympy.exp(-1j*k_sym*z_sym+1j*sympy.atan(z_sym/z_r_sym))
+  phi_0       = w_0_sym/w_z_sym*sympy.exp(-(x_sym**2+y_sym**2)/w_z_sym**2)    \
+                *sympy.exp(-1j*k_sym*z_sym)                                   \
+                *sympy.exp(1j*sympy.atan(z_sym/z_r_sym))
 
-  # -- Lambdified expressions for numerical evaluation.
-  phi         = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), phi_0)
-  psi         = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), psi_1)
-  summand     = phi(X,Y,z,k,w_0)
+  # -- Symbolic expressions for summation phi/psi = sum_m phi^(2m)/psi^(2m+1)
+  phi         = phi_0
+  psi         = 1j/k*sympy.diff(phi_0,x_sym)
+
+  # -- Symbolic expressions for specific values of m, to be used in the loop.
+  phi_2m      = phi
+  psi_2mp1    = psi
 
   # -- We compute the derivatives analytically.
   derivatives = []
   for i in range(1,2*m_max+1):
     derivatives.append(sympy.diff(phi_0,z_sym,i))
 
+  # -- We evaluate the higher-order terms.
   for m in range(1,m_max+1):
-    phi_2m       = sympy.S.zero
-    psi_2mp1     = sympy.S.zero
+    phi_2m       = sympy.S.Zero
 
     for p in range(1,m+1):
+
       # -- We evaluate the product between the z factor and the derivative,
-      # -- simplifty it, and then lambdify it, and add it the sum.
+      # -- and add it to the symbolic expression.
       polynomial = z_sym**p*derivatives[m+p-2]
-      polynomial = sympy.simplify(polynomial)
       phi_2m    += ExpansionCoefficient(m,p)*polynomial
 
-    if (m>0):
-      psi_2mp1   = 1j/k*(sympy.diff(phi_2m,x)+sympy.diff(psi_2mp1))
+    phi_2m   *= (1j/(2*k))**m
+    psi_2mp1  = 1j/k*(sympy.diff(phi_2m,x_sym)+sympy.diff(psi_2mp1,z_sym))
+    phi      += phi_2m
+    psi      += psi_2mp1
 
-    phi_2m *= (1j/(2*k))**m
-    summand += (1j/(2*k))**m*innerSummand
+  # -- We evaluate the magnetic field.
+  Bx_sym = sympy.diff(psi, y_sym)/(1j*k)
+  By_sym = (sympy.diff(phi, z_sym)-sympy.diff(psi,x_sym))/(1j*k)
+  Bz_sym = -sympy.diff(phi, y_sym)/(1j*k)
 
-  return summand, summand_z
+  # -- We lambdify the expressions and evaluate them.
+  Ex = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), phi)
+  Ez = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), psi)
+  Bx = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), Bx_sym)
+  By = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), By_sym)
+  Bz = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), Bz_sym)
+
+  return Ex(X,Y,z,k,w_0), Ez(X,Y,z,k,w_0), Bx(X,Y,z,k,w_0), By(X,Y,z,k,w_0), Bz(X,Y,z,k,w_0)
 
 # ----------------------------- Salamin's models ---------------------------- #
 def ApplPhysB(x,y,z,k,w_0):
@@ -172,31 +190,98 @@ class TestExpansionCoefficients(unittest.TestCase):
 # ------------------------------ MAIN FUNCTION ------------------------------ #
 if __name__ == "__main__":
 
-  # -- Run tests.
-  #unittest.main()
 
   # -- Substitute numerical values for fixed parameters in phi_0.
   lamb  = 800e-9
-  k     = 2*np.pi*cst.c/lamb
-  w0    = 0.70*lamb
+  k     = 2*np.pi/lamb
+  w0    = 0.4*lamb
 
-  x_f = np.linspace(-2.5*w0,2.5*w0,100)
-  y_f = np.linspace(-2.5*w0,2.5*w0,100)
+  x_f = np.linspace(-2.5e-6,2.5e-6,100)
+  y_f = np.linspace(-2.5e-6,2.5e-6,100)
   X, Y = np.meshgrid(x_f,y_f)
   z   = 0.0
 
-  Ex, Ez = ExLax(X,Y,z,k,w0,3)
+  # -- Compute the terms of the series.
+  Ex, Ez, Bx, By, Bz = ExLax(X,Y,z,k,w0,4)
 
-  plt.figure()
-  plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ex)**2)
+  fig = plt.figure()
+  ax  = fig.add_subplot(111)
+  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ex)**2)
   plt.contour(X*1e6,Y*1e6,np.abs(Ex)**2, linestyles='--')
   plt.gca().set_aspect('equal')
 
-  plt.figure()
-  plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ez)**2)
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+  fig = plt.figure()
+  ax  = fig.add_subplot(111)
+  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ez)**2)
   plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2, linestyles='--')
   plt.gca().set_aspect('equal')
 
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+  fig = plt.figure()
+  ax  = fig.add_subplot(111)
+  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bx)**2)
+  #plt.contour(X*1e6,Y*1e6,np.abs(Ex)**2, linestyles='--')
+  plt.gca().set_aspect('equal')
+
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+  fig = plt.figure()
+  ax  = fig.add_subplot(111)
+  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(By)**2)
+  #plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2, linestyles='--')
+  plt.gca().set_aspect('equal')
+
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+  fig = plt.figure()
+  ax  = fig.add_subplot(111)
+  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bz)**2)
+  #plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2, linestyles='--')
+  plt.gca().set_aspect('equal')
+
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+  # -- Guoy shift of ExLax for different values of m.
+  phases = []
+  z_r = k*w0**2/2
+  z = np.linspace(-10*z_r,10*z_r,401)
+  for i in range(5):
+    Ex, Ez, Bx,By,Bz = ExLax(0,0,z,k,w0,i)
+    Ex_phase = np.angle(Ex*np.exp(1j*k*z))
+    phases.append(Ex_phase)
+
+  GaussianPhase = np.arctan(2*z/(k*w0**2))
+
+  plt.figure()
+  plt.plot(z*1e6,GaussianPhase)
+
+  for i in range(5):
+    plt.plot(z*1e6,phases[i])
+
+  z = 0
   Ex, Ey, Ez, Bx, By, Bz = np.abs(ApplPhysB(X,Y,z,k,w0))
   plt.figure()
   plt.pcolormesh(X*1e6,Y*1e6,Ex**2)
@@ -208,12 +293,11 @@ if __name__ == "__main__":
   plt.contour(X*1e6,Y*1e6, Ez**2, linestyles='--')
   plt.gca().set_aspect('equal')
 
+  w0 = 0.40*lamb
   x_f = np.linspace(-0.75*w0,0.75*w0,100)
   y_f = np.linspace(-0.75*w0,0.75*w0,100)
   X, Y = np.meshgrid(x_f,y_f)
   z   = 0
-
-  w0 = 0.70*lamb
   Ex,Ey,Ez,Bx,By,Bz = CSPSW(X,Y,z,2*np.pi/lamb,2*np.pi/lamb*w0**2/2)
 
   plt.figure()
@@ -226,3 +310,6 @@ if __name__ == "__main__":
   plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2,linestyles='--',colors='k')
   plt.gca().set_aspect('equal')
   plt.show()
+
+  # -- Run tests.
+  #unittest.main()
