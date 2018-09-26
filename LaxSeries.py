@@ -116,7 +116,7 @@ def ExLax(X,Y,z,k,w_0,m_max):
   By = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), By_sym)
   Bz = sympy.lambdify((x_sym,y_sym,z_sym,k_sym,w_0_sym), Bz_sym)
 
-  return Ex(X,Y,z,k,w_0), Ez(X,Y,z,k,w_0), Bx(X,Y,z,k,w_0), By(X,Y,z,k,w_0), Bz(X,Y,z,k,w_0)
+  return Ex(X,Y,z,k,w_0), np.zeros_like(Ex(X,Y,z,k,w_0)), Ez(X,Y,z,k,w_0), Bx(X,Y,z,k,w_0), By(X,Y,z,k,w_0), Bz(X,Y,z,k,w_0)
 
 # ----------------------------- Salamin's models ---------------------------- #
 def ApplPhysB(x,y,z,k,w_0):
@@ -175,6 +175,62 @@ def CSPSW(x,y,z,k,z_r):
 
   return Ex, Ey, Ez, Bx, By, Bz
 
+# ---------------------------- Plotting Functions --------------------------- #
+def DivideColorbar(ax,im):
+  divider = make_axes_locatable(ax)
+  cax     = divider.append_axes("right", size="5%", pad=0.1)
+  cbar    = plt.colorbar(im, cax=cax)
+  cbar.formatter.set_powerlimits((0,0))
+  cbar.update_ticks()
+
+def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,contour_options=None):
+  fig = plt.figure(figsize=(7,4))
+  fig.subplots_adjust(hspace=0.3,wspace=0.5)
+
+  ax  = plt.subplot2grid((2,3), (0,0))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,Ex, **plot_options)
+  plt.contour(X*1e6,Y*1e6,Ex,levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  ax  = plt.subplot2grid((2,3), (0,1))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,Ey, **plot_options)
+  plt.contour(X*1e6,Y*1e6,Ey, levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  ax  = plt.subplot2grid((2,3),(0,2))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,Ez, **plot_options)
+  plt.contour(X*1e6,Y*1e6,Ez, levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  ax  = plt.subplot2grid((2,3),(1,0))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,Bx, **plot_options)
+  plt.contour(X*1e6,Y*1e6,Bx, levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  ax  = plt.subplot2grid((2,3),(1,1))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,By, **plot_options)
+  plt.contour(X*1e6,Y*1e6,By, levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  ax  = plt.subplot2grid((2,3),(1,2))
+  im  = plt.pcolormesh(X*1e6,Y*1e6,Bz, **plot_options)
+  plt.contour(X*1e6,Y*1e6,Bz, levels, **contour_options)
+  plt.gca().set_aspect('equal')
+
+  DivideColorbar(ax,im)
+
+  plt.savefig(filename, bbox_inches='tight', dpi=500)
+
 # ------------------------------- Unit Testing ------------------------------ #
 class TestExpansionCoefficients(unittest.TestCase):
 
@@ -194,6 +250,10 @@ class TestExpansionCoefficients(unittest.TestCase):
 # ------------------------------ MAIN FUNCTION ------------------------------ #
 if __name__ == "__main__":
 
+  # -- Plot options.
+  plot_options = {"cmap": "jet", "rasterized": True}
+  levels=2
+  contour_options = {"linestyles": '--', "linewidths": 0.5}
 
   # -- Substitute numerical values for fixed parameters in phi_0.
   lamb  = 800e-9
@@ -206,80 +266,24 @@ if __name__ == "__main__":
   z   = 0.0
 
   # -- Compute the terms of the series.
-  Ex, Ez, Bx, By, Bz = ExLax(X,Y,z,k,w0,4)
+  Ex, Ey, Ez, Bx, By, Bz = ExLax(X,Y,z,k,w0,4)
 
-  # -- Plot options.
-  plot_options = {"cmap": "jet", "rasterized": True}
-  levels=2
-  contour_options = {"linestyles": '--', "linewidths": 0.5}
+  Ex /= np.amax(np.abs(Ex))
+  Ey /= np.amax(np.abs(Ex))
+  Ez /= np.amax(np.abs(Ex))
+  Bx /= np.amax(np.abs(Ex))
+  By /= np.amax(np.abs(Ex))
+  Bz /= np.amax(np.abs(Ex))
 
-  # -- We prepare the figure.
-  fig = plt.figure(figsize=(7,4))
-  fig.subplots_adjust(hspace=0.3,wspace=0.5)
 
-  ax  = plt.subplot2grid((2,3), (0,0))
-  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ex)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Ex)**2, levels, **contour_options)
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im, cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax  = plt.subplot2grid((2,3),(0,2))
-  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ez)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2, levels, **contour_options)
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im, cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax  = plt.subplot2grid((2,3),(1,0))
-  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bx)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Bx)**2, levels, **contour_options)
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im, cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax  = plt.subplot2grid((2,3),(1,1))
-  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(By)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(By)**2, levels, **contour_options)
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im, cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax  = plt.subplot2grid((2,3),(1,2))
-  im  = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bz)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Bz)**2, levels, **contour_options)
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im, cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  plt.savefig("LaxSeries.pdf", bbox_inches='tight', dpi=500)
+  PlotAllComponents("LaxSeries.pdf",X,Y,np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
 
   # -- Gouy shift of ExLax for different values of m.
   phases = []
   z_r = k*w0**2/2
   z = np.linspace(-10*z_r,10*z_r,401)
   for i in range(5):
-    Ex, Ez, Bx,By,Bz = ExLax(0,0,z,k,w0,i)
+    Ex,Ey, Ez, Bx,By,Bz = ExLax(0,0,z,k,w0,i)
     Ex_phase = np.angle(Ex*np.exp(1j*k*z))
     phases.append(Ex_phase)
 
@@ -298,157 +302,30 @@ if __name__ == "__main__":
   z = 0
   Ex, Ey, Ez, Bx, By, Bz = np.abs(ApplPhysB(X,Y,z,k,w0))
 
-  # -- We prepare the figure.
-  fig = plt.figure(figsize=(7,4))
-  fig.subplots_adjust(hspace=0.3,wspace=0.5)
+  PlotAllComponents("Salamin.pdf", Ex**2,Ey**2,Ez**2,Bx**2,By**2,Bz**2,levels,plot_options,contour_options)
 
-  ax = plt.subplot2grid((2,3),(0,0))
-  im = plt.pcolormesh(X*1e6,Y*1e6,Ex**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,Ex**2, linestyles='--')
-  plt.gca().set_aspect('equal')
+  # -- Gouy shift of ExLax for different values of m.
+  phases = []
+  z_r = k*w0**2/2
+  z = np.linspace(-10*z_r,10*z_r,401)
+  Ex,Ey, Ez, Bx,By,Bz = ApplPhysB(0,0,z,k,w0)
+  Ex_phase = np.angle(Ex*np.exp(1j*k*z))
 
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
+  GaussianPhase = np.arctan(2*z/(k*w0**2))
 
-  ax = plt.subplot2grid((2,3),(0,1))
-  im = plt.pcolormesh(X*1e6,Y*1e6,Ey**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,Ey**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(0,2))
-  im = plt.pcolormesh(X*1e6,Y*1e6,Ez**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,Ez**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,0))
-  im = plt.pcolormesh(X*1e6,Y*1e6,Bx**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,Bx**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,1))
-  im = plt.pcolormesh(X*1e6,Y*1e6,By**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,By**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,2))
-  im = plt.pcolormesh(X*1e6,Y*1e6,Bz**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,Bz**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  plt.savefig("Salamin.pdf", bbox_inches='tight', dpi=500)
+  plt.figure()
+  plt.plot(z,GaussianPhase)
+  plt.plot(z,Ex_phase)
+  plt.savefig("GouyPhase-ApplPhysB.pdf", bbox_inches='tight', dpi=500)
 
   w0 = 0.40*lamb
-  x_f = np.linspace(-0.75*w0,0.75*w0,100)
-  y_f = np.linspace(-0.75*w0,0.75*w0,100)
+  x_f = np.linspace(-0.50*w0,0.50*w0,100)
+  y_f = np.linspace(-0.50*w0,0.50*w0,100)
   X, Y = np.meshgrid(x_f,y_f)
   z   = 0
   Ex,Ey,Ez,Bx,By,Bz = CSPSW(X,Y,z,2*np.pi/lamb,2*np.pi/lamb*w0**2/2)
 
-
-  # -- We prepare the figure.
-  fig = plt.figure(figsize=(7,4))
-  fig.subplots_adjust(hspace=0.3,wspace=0.5)
-
-  ax = plt.subplot2grid((2,3),(0,0))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ex)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Ex)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(0,1))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ey)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Ey)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(0,2))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Ez)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Ez)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,0))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bx)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Bx)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,1))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(By)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(By)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  ax = plt.subplot2grid((2,3),(1,2))
-  im = plt.pcolormesh(X*1e6,Y*1e6,np.abs(Bz)**2, **plot_options)
-  plt.contour(X*1e6,Y*1e6,np.abs(Bz)**2, linestyles='--')
-  plt.gca().set_aspect('equal')
-
-  divider = make_axes_locatable(ax)
-  cax     = divider.append_axes("right", size="5%", pad=0.1)
-  cbar    = plt.colorbar(im,cax=cax)
-  cbar.formatter.set_powerlimits((0,0))
-  cbar.update_ticks()
-
-  plt.savefig("CSPSW.pdf", bbox_inches='tight', dpi=500)
+  PlotAllComponents("CSPSW.pdf", np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
 
   # -- Run tests.
   #unittest.main()
