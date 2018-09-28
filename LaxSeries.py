@@ -26,6 +26,9 @@ import vphys
 vphys.default_pgf_configuration()
 
 # -------------------------------- Functions -------------------------------- #
+def user_mod(value, modulo):
+  return value-np.abs(modulo)*np.floor(value/np.abs(modulo))
+
 def ExpansionCoefficient(m,p):
   """
   Computes the expansion coefficient of non-paraxial terms of the
@@ -190,42 +193,53 @@ def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,co
   ax  = plt.subplot2grid((2,3), (0,0))
   im  = plt.pcolormesh(X*1e6,Y*1e6,Ex, **plot_options)
   plt.contour(X*1e6,Y*1e6,Ex,levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  #ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
+  ax.set_title(r"$E_x$")
 
   DivideColorbar(ax,im)
 
   ax  = plt.subplot2grid((2,3), (0,1))
   im  = plt.pcolormesh(X*1e6,Y*1e6,Ey, **plot_options)
   plt.contour(X*1e6,Y*1e6,Ey, levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  ax.set_title(r"$E_y$")
 
   DivideColorbar(ax,im)
 
   ax  = plt.subplot2grid((2,3),(0,2))
   im  = plt.pcolormesh(X*1e6,Y*1e6,Ez, **plot_options)
   plt.contour(X*1e6,Y*1e6,Ez, levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  ax.set_title(r"$E_z$")
 
   DivideColorbar(ax,im)
 
   ax  = plt.subplot2grid((2,3),(1,0))
   im  = plt.pcolormesh(X*1e6,Y*1e6,Bx, **plot_options)
   plt.contour(X*1e6,Y*1e6,Bx, levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  #ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
+  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_title(r"$B_x$")
 
   DivideColorbar(ax,im)
 
   ax  = plt.subplot2grid((2,3),(1,1))
   im  = plt.pcolormesh(X*1e6,Y*1e6,By, **plot_options)
   plt.contour(X*1e6,Y*1e6,By, levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_title(r"$B_y$")
 
   DivideColorbar(ax,im)
 
   ax  = plt.subplot2grid((2,3),(1,2))
   im  = plt.pcolormesh(X*1e6,Y*1e6,Bz, **plot_options)
   plt.contour(X*1e6,Y*1e6,Bz, levels, **contour_options)
-  plt.gca().set_aspect('equal')
+  ax.set_aspect('equal')
+  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_title(r"$B_z$")
 
   DivideColorbar(ax,im)
 
@@ -258,25 +272,27 @@ if __name__ == "__main__":
   # -- Substitute numerical values for fixed parameters in phi_0.
   lamb  = 800e-9
   k     = 2*np.pi/lamb
-  w0    = 0.4*lamb
+  w0    = 0.5*lamb
 
-  x_f = np.linspace(-1.5e-6,1.5e-6,100)
-  y_f = np.linspace(-1.5e-6,1.5e-6,100)
-  X, Y = np.meshgrid(x_f,y_f)
-  z   = 0.0
+  z_r   = k*w0**2/2
+  x_f   = np.linspace(-1.5e-6,1.5e-6,100)
+  y_f   = np.linspace(-1.5e-6,1.5e-6,100)
+  X, Y  = np.meshgrid(x_f,y_f)
+  z     = 0
 
   # -- Compute the terms of the series.
-  Ex, Ey, Ez, Bx, By, Bz = ExLax(X,Y,z,k,w0,4)
+  Ex_ref, Ey_ref, Ez_ref, Bx_ref, By_ref, Bz_ref = ExLax(X,Y,z,k,w0,0)
+  for i in range(0,5):
+    Ex, Ey, Ez, Bx, By, Bz = ExLax(X,Y,z,k,w0,i)
 
-  Ex /= np.amax(np.abs(Ex))
-  Ey /= np.amax(np.abs(Ex))
-  Ez /= np.amax(np.abs(Ex))
-  Bx /= np.amax(np.abs(Ex))
-  By /= np.amax(np.abs(Ex))
-  Bz /= np.amax(np.abs(Ex))
+    Ex /= np.amax(np.abs(Ex_ref))
+    Ey /= np.amax(np.abs(Ex_ref))
+    Ez /= np.amax(np.abs(Ex_ref))
+    Bx /= np.amax(np.abs(Ex_ref))
+    By /= np.amax(np.abs(Ex_ref))
+    Bz /= np.amax(np.abs(Ex_ref))
 
-
-  PlotAllComponents("LaxSeries.pdf",X,Y,np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
+    PlotAllComponents("LaxSeries-{}.pdf".format(i),X,Y,np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
 
   # -- Gouy shift of ExLax for different values of m.
   phases = []
@@ -298,13 +314,12 @@ if __name__ == "__main__":
   plt.savefig("GouyPhase-LaxSeries.pdf", bbox_inches='tight')
 
   # -- Salamin models.
-
   z = 0
   Ex, Ey, Ez, Bx, By, Bz = np.abs(ApplPhysB(X,Y,z,k,w0))
 
-  PlotAllComponents("Salamin.pdf", Ex**2,Ey**2,Ez**2,Bx**2,By**2,Bz**2,levels,plot_options,contour_options)
+  PlotAllComponents("Salamin.pdf",X,Y,Ex**2,Ey**2,Ez**2,Bx**2,By**2,Bz**2,levels,plot_options,contour_options)
 
-  # -- Gouy shift of ExLax for different values of m.
+  # -- Gouy shift of ApplPhysB.
   phases = []
   z_r = k*w0**2/2
   z = np.linspace(-10*z_r,10*z_r,401)
@@ -314,8 +329,8 @@ if __name__ == "__main__":
   GaussianPhase = np.arctan(2*z/(k*w0**2))
 
   plt.figure()
-  plt.plot(z,GaussianPhase)
-  plt.plot(z,Ex_phase)
+  plt.plot(z*1e6,GaussianPhase)
+  plt.plot(z*1e6,Ex_phase+np.pi/2)
   plt.savefig("GouyPhase-ApplPhysB.pdf", bbox_inches='tight', dpi=500)
 
   w0 = 0.40*lamb
@@ -323,9 +338,24 @@ if __name__ == "__main__":
   y_f = np.linspace(-0.50*w0,0.50*w0,100)
   X, Y = np.meshgrid(x_f,y_f)
   z   = 0
-  Ex,Ey,Ez,Bx,By,Bz = CSPSW(X,Y,z,2*np.pi/lamb,2*np.pi/lamb*w0**2/2)
+  Ex,Ey,Ez,Bx,By,Bz = CSPSW(X,Y,z,k,k*w0**2/2)
 
-  PlotAllComponents("CSPSW.pdf", np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
+  PlotAllComponents("CSPSW.pdf", X, Y, np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
+
+  # -- Gouy shift of ApplPhysB.
+  phases = []
+  z_r = k*w0**2/2
+  z = np.linspace(-10*z_r,10*z_r,401)
+  Ex,Ey,Ez,Bx,By,Bz = CSPSW(0,0,z,k,z_r)
+  Ex_phase = np.angle(Ex*np.exp(1j*k*np.abs(z)))
+  Ex_phase[z<0] -= np.pi
+
+  GaussianPhase = np.arctan(2*z/(k*w0**2))
+
+  plt.figure()
+  plt.plot(z*1e6,GaussianPhase)
+  plt.plot(z*1e6,user_mod(Ex_phase+np.pi,2*np.pi)-np.pi)
+  plt.savefig("GouyPhase-CSPSW.pdf", bbox_inches='tight', dpi=500)
 
   # -- Run tests.
   #unittest.main()
