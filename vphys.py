@@ -86,12 +86,13 @@ def default_pgf_configuration():
    		"pgf.rcfonts": False,   # don't setup fonts from rc parameters
    		"pgf.preamble": [
         r"\usepackage{amsmath}",
-        r"\usepackage{siunitx}",
         #r"\usepackage{mathspec}",
         r"\usepackage[charter]{mathdesign}",
         r"\usepackage{fontspec}",
         #r"\setmathfont{Fira Sans}",
-        r"\setmainfont{Oswald}",
+        #r"\setmainfont{Oswald}",
+        r"\usepackage{siunitx}",
+        r"\sisetup{math-micro=\text{µ},text-micro=µ}"
         ]
   }
 

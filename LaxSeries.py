@@ -23,7 +23,8 @@ import unittest
 import sympy
 import vphys
 
-vphys.default_pgf_configuration()
+pgf_with_pdflatex = vphys.default_pgf_configuration()
+matplotlib.rcParams.update(pgf_with_pdflatex)
 
 # -------------------------------- Functions -------------------------------- #
 def user_mod(value, modulo):
@@ -74,13 +75,21 @@ def ExLax(X,Y,z,k,w_0,m_max):
   x_sym, y_sym,z_sym,k_sym, w_0_sym = sympy.symbols('x_sym y_sym z_sym k_sym w_0_sym')
   z_r_sym     = k_sym*w_0_sym**2/2
   w_z_sym     = w_0_sym*sympy.sqrt(1+(z_sym/z_r_sym)**2)
+  R_sym       = z_sym/(z_sym**2+z_r_sym**2)
   phi_0       = w_0_sym/w_z_sym*sympy.exp(-(x_sym**2+y_sym**2)/w_z_sym**2)    \
                 *sympy.exp(-1j*k_sym*z_sym)                                   \
                 *sympy.exp(1j*sympy.atan(z_sym/z_r_sym))
+#                *sympy.exp(-1j*k_sym*(x_sym**2+y_sym**2)*R_sym/2)             \
 
   # -- Symbolic expressions for summation phi/psi = sum_m phi^(2m)/psi^(2m+1)
   phi         = phi_0
   psi         = 1j/k*sympy.diff(phi_0,x_sym)
+  weginer_phi = sympy.S.Zero
+  weginer_psi = sympy.S.Zero
+  phi_aj      = [sympy.S.Zero]
+  phi_sj      = [sympy.S.Zero]
+  psi_aj      = [sympy.S.Zero]
+  psi_sj      = [sympy.S.Zero]
 
   # -- Symbolic expressions for specific values of m, to be used in the loop.
   phi_2m      = phi
@@ -106,6 +115,18 @@ def ExLax(X,Y,z,k,w_0,m_max):
     psi_2mp1  = 1j/k*(sympy.diff(phi_2m,x_sym)+sympy.diff(psi_2mp1,z_sym))
     phi      += phi_2m
     psi      += psi_2mp1
+
+    phi_aj.append()
+
+    # -- Weginer transformation.
+    numerator = sympy.S.Zero
+    denominator = sympy.S.Zero
+
+    for j in range(m+1):
+      s_j = sympy.S.Zero
+      for i in range(j+1):
+        s_j += 
+      numerator += (-1)**j*sympy.binomial(m,j)*sympy.rf(1+j,m-1)
 
   # -- We evaluate the magnetic field.
   Bx_sym = sympy.diff(psi, y_sym)/(1j*k)
@@ -194,7 +215,7 @@ def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,co
   im  = plt.pcolormesh(X*1e6,Y*1e6,Ex, **plot_options)
   plt.contour(X*1e6,Y*1e6,Ex,levels, **contour_options)
   ax.set_aspect('equal')
-  #ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
+  ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
   ax.set_title(r"$E_x$")
 
   DivideColorbar(ax,im)
@@ -219,8 +240,8 @@ def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,co
   im  = plt.pcolormesh(X*1e6,Y*1e6,Bx, **plot_options)
   plt.contour(X*1e6,Y*1e6,Bx, levels, **contour_options)
   ax.set_aspect('equal')
-  #ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
-  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_ylabel(r"$y$ [\si{\micro\metre}]")
+  ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
   ax.set_title(r"$B_x$")
 
   DivideColorbar(ax,im)
@@ -229,7 +250,7 @@ def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,co
   im  = plt.pcolormesh(X*1e6,Y*1e6,By, **plot_options)
   plt.contour(X*1e6,Y*1e6,By, levels, **contour_options)
   ax.set_aspect('equal')
-  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
   ax.set_title(r"$B_y$")
 
   DivideColorbar(ax,im)
@@ -238,7 +259,7 @@ def PlotAllComponents(filename,X,Y,Ex,Ey,Ez,Bx,By,Bz,levels,plot_options=None,co
   im  = plt.pcolormesh(X*1e6,Y*1e6,Bz, **plot_options)
   plt.contour(X*1e6,Y*1e6,Bz, levels, **contour_options)
   ax.set_aspect('equal')
-  #ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
+  ax.set_xlabel(r"$x$ [\si{\micro\metre}]")
   ax.set_title(r"$B_z$")
 
   DivideColorbar(ax,im)
@@ -272,11 +293,11 @@ if __name__ == "__main__":
   # -- Substitute numerical values for fixed parameters in phi_0.
   lamb  = 800e-9
   k     = 2*np.pi/lamb
-  w0    = 0.5*lamb
+  w0    = 2.5*lamb
 
   z_r   = k*w0**2/2
-  x_f   = np.linspace(-1.5e-6,1.5e-6,100)
-  y_f   = np.linspace(-1.5e-6,1.5e-6,100)
+  x_f   = np.linspace(-2.5e-6,2.5e-6,100)
+  y_f   = np.linspace(-2.5e-6,2.5e-6,100)
   X, Y  = np.meshgrid(x_f,y_f)
   z     = 0
 
@@ -317,6 +338,14 @@ if __name__ == "__main__":
   z = 0
   Ex, Ey, Ez, Bx, By, Bz = np.abs(ApplPhysB(X,Y,z,k,w0))
 
+  Ex_ref = np.copy(Ex)
+  Ex /= np.amax(np.abs(Ex_ref))
+  Ey /= np.amax(np.abs(Ex_ref))
+  Ez /= np.amax(np.abs(Ex_ref))
+  Bx /= np.amax(np.abs(Ex_ref))
+  By /= np.amax(np.abs(Ex_ref))
+  Bz /= np.amax(np.abs(Ex_ref))
+
   PlotAllComponents("Salamin.pdf",X,Y,Ex**2,Ey**2,Ez**2,Bx**2,By**2,Bz**2,levels,plot_options,contour_options)
 
   # -- Gouy shift of ApplPhysB.
@@ -333,12 +362,19 @@ if __name__ == "__main__":
   plt.plot(z*1e6,Ex_phase+np.pi/2)
   plt.savefig("GouyPhase-ApplPhysB.pdf", bbox_inches='tight', dpi=500)
 
-  w0 = 0.40*lamb
   x_f = np.linspace(-0.50*w0,0.50*w0,100)
   y_f = np.linspace(-0.50*w0,0.50*w0,100)
   X, Y = np.meshgrid(x_f,y_f)
   z   = 0
   Ex,Ey,Ez,Bx,By,Bz = CSPSW(X,Y,z,k,k*w0**2/2)
+
+  Ex_ref = np.copy(Ex)
+  Ex /= np.amax(np.abs(Ex_ref))
+  Ey /= np.amax(np.abs(Ex_ref))
+  Ez /= np.amax(np.abs(Ex_ref))
+  Bx /= np.amax(np.abs(Ex_ref))
+  By /= np.amax(np.abs(Ex_ref))
+  Bz /= np.amax(np.abs(Ex_ref))
 
   PlotAllComponents("CSPSW.pdf", X, Y, np.abs(Ex)**2,np.abs(Ey)**2,np.abs(Ez)**2,np.abs(Bx)**2,np.abs(By)**2,np.abs(Bz)**2,levels,plot_options,contour_options)
 
@@ -354,7 +390,7 @@ if __name__ == "__main__":
 
   plt.figure()
   plt.plot(z*1e6,GaussianPhase)
-  plt.plot(z*1e6,user_mod(Ex_phase+np.pi,2*np.pi)-np.pi)
+  plt.plot(z*1e6,user_mod(Ex_phase,2*np.pi)-np.pi)
   plt.savefig("GouyPhase-CSPSW.pdf", bbox_inches='tight', dpi=500)
 
   # -- Run tests.
